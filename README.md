@@ -1,0 +1,117 @@
+# PartialResynth
+
+<img src="docs/images/VST_Compatible_Logo_Steinberg_with_TM.png" alt="VST Compatible" width="110">
+
+A VST® 3 effect by Hadronyche that listens to its input, finds the five loudest partials, and plays each of them with its own synth voice. The analysis is a port of `fiddle~` from Pure Data. It's built directly on the Steinberg VST 3 SDK and VSTGUI.
+
+`docs/signal-path.md` describes the design and how each module behaves.
+
+## Download
+
+Get the installer from the [latest release](https://github.com/HadronycheAudio/PartialResynth/releases/latest). It needs 64-bit Windows 10 or later, and installs to `C:\Program Files\Common Files\VST3`. The installer isn't code-signed, so Windows will probably warn you: choose **More info**, then **Run anyway**.
+
+## Using it
+
+Each voice follows one partial, taking its frequency and its level. There are no envelopes to set: the analysis is the envelope. All the controls apply to all five voices.
+
+**Analysis**
+
+- Threshold is in dB below a full-scale sine, measured on the input's total power. Below it, the voices fade out.
+- Glide slows the voices' pitch down as they follow their partials. At 0, they track as tightly as the analysis allows.
+
+**Oscillator 1 and 2**
+
+- Wave is sine, saw or square.
+- Level sets how much of it goes to the filter. Both at 100% can be up to 6 dB louder than the input, and there's no limiter.
+- Coarse and Fine tune it relative to the partial.
+
+**Filter**
+
+- Mode is low-pass, high-pass, band-pass or notch.
+- Cutoff and Resonance work as you'd expect, and each voice has its own filter.
+- Key follow moves the cutoff with the voice's frequency. At 100%, it keeps the same distance from the partial as 440 Hz does from Cutoff.
+- Env amount moves the cutoff with the voice's level, by up to 8 octaves either way. It's measured in terms of level, so a quiet partial still moves it, from nothing at -60 dB to the whole amount at full scale.
+
+**Output**
+
+- Spread places the voices across the stereo field. Which partial goes where depends on which voice it found free.
+- Dry/wet at 50% plays both at full level.
+- Volume is last.
+
+The plug-in has 1536 samples of latency at 44.1 and 48 kHz (35 and 32 ms), and it reports this to the host. The dry signal is delayed to match.
+
+## Requirements for building
+
+- Visual Studio 2022 with the "Desktop development with C++" workload
+- CMake 3.25 or newer
+- Git
+
+## Getting the code
+
+The SDK is a pinned git submodule in `external/`:
+
+```powershell
+git -c core.longpaths=true clone --recurse-submodules <repo-url>
+# or, in an existing clone:
+git -c core.longpaths=true submodule update --init --recursive
+```
+
+Long paths are needed if you clone into a deep folder, because some of the SDK's sample files would otherwise exceed the Windows path limit.
+
+## Building
+
+```powershell
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release --target PartialResynth
+```
+
+This produces `build/VST3/Release/PartialResynth.vst3`. Each build also runs the Steinberg validator on the plug-in, and a validation failure fails the build.
+
+To open the project in the Visual Studio IDE, use `build/PartialResynth.sln`.
+
+## Testing
+
+```powershell
+cmake --build build --config Release --target PartialResynthTests
+ctest --test-dir build -C Release --output-on-failure -j 4
+```
+
+The tests load the built plug-in and drive it like a host, including its panel. They also run Pure Data's original `fiddle~` source alongside the port, and compare every frame. `AGENTS.md` explains how they work.
+
+## Installing your own build
+
+Close your host, then run this from an elevated PowerShell in the project folder:
+
+```powershell
+Copy-Item -Recurse -Force build/VST3/Release/PartialResynth.vst3 "C:\Program Files\Common Files\VST3\"
+```
+
+## Project layout
+
+| Path | Purpose |
+| --- | --- |
+| `src/PluginConfig.h` | Plug-in name, vendor details and class IDs |
+| `src/PluginEntry.cpp` | VST3 module entry, registers the classes below |
+| `src/Parameters.*` | Parameter IDs, ranges and text, plus saving and loading their values |
+| `src/Processor.*` | Runs the analysis, the voices and the dry path |
+| `src/Controller.*` | Registers the parameters and creates the editor |
+| `src/Editor.*` | The plug-in window |
+| `src/dsp/FiddleAnalyzer.*` | The port of `fiddle~`'s peak analysis |
+| `src/dsp/PartialTracker.h` | Chooses the partials, and keeps each with its voice |
+| `src/dsp/` | Also the voice, oscillator, filter and parameter smoothing |
+| `tests/` | Tests that drive the built plug-in like a host |
+| `tests/reference/` | Pure Data's original `fiddle~.c`, unchanged, for the tests to compare with |
+| `installer/` | The Windows installer, and the script that tests it |
+| `docs/` | The behaviour specification and release notes |
+
+## Licence
+
+PartialResynth is released under the MIT licence: see `LICENSE`.
+
+It's built with the following, which keep their own licences:
+
+- VST3 SDK: MIT (`external/vst3sdk/LICENSE.txt`)
+- VSTGUI (`external/vst3sdk/vstgui4/LICENSE`)
+- `fiddle~` from Pure Data, by Miller Puckette and Ted Apel, whose analysis is ported in `src/dsp/FiddleAnalyzer.cpp`: Standard Improved BSD License (`licenses/pure-data.txt`)
+
+VST is a registered trademark of Steinberg Media Technologies GmbH.
