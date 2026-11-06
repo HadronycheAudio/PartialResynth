@@ -20,13 +20,17 @@ add_executable(PartialResynthTests
     FiddleTests.cpp
     ResynthTests.cpp
     SynthTests.cpp
-    PanelTest.cpp
     "${CMAKE_SOURCE_DIR}/src/dsp/FiddleAnalyzer.cpp"
 )
 
 target_include_directories(PartialResynthTests PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(PartialResynthTests PRIVATE hadronyche_testhost ReferenceFiddle)
 add_dependencies(PartialResynthTests PartialResynth)
+
+# It drives a real window with Windows' mouse messages.
+if(WIN32)
+    target_sources(PartialResynthTests PRIVATE PanelTest.cpp)
+endif()
 
 set(PARTIALRESYNTH_TESTS
     class-ids parameter-ids parameter-ranges saved-format buses latency-report

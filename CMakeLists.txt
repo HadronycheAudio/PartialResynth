@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
+# The oldest macOS it runs on. This has to come before project (), or it defaults to the build machine's own.
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "The oldest macOS supported")
+
 # C is only used by the tests, which build Pure Data's original fiddle~ to compare the analysis against.
 project(PartialResynth VERSION 1.0.1 LANGUAGES C CXX)
 
@@ -15,7 +18,7 @@ include("${HADRONYCHE_CORE_DIR}/cmake/HadronychePlugin.cmake")
 hadronyche_use_vst3_sdk()
 
 # --- Plug-in ------------------------------------------------------------------
-hadronyche_add_plugin(PartialResynth SOURCES
+hadronyche_add_plugin(PartialResynth AU_TYPE aufx AU_SUBTYPE PrRs SOURCES
     src/PluginConfig.h
     src/PluginEntry.cpp
     src/Parameters.h

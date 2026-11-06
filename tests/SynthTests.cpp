@@ -7,9 +7,8 @@
 #include "pluginterfaces/base/ustring.h"
 #include "public.sdk/source/common/memorystream.h"
 
-#include <windows.h>
-
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -542,15 +541,11 @@ void measureCpu ()
     plug.set (kFilterEnvAmount, 2);
     plug.set (kSpread, 100);
 
-    LARGE_INTEGER frequency;
-    LARGE_INTEGER start;
-    LARGE_INTEGER end;
-    QueryPerformanceFrequency (&frequency);
-    QueryPerformanceCounter (&start);
+    const auto start = std::chrono::steady_clock::now ();
     plug.process (input);
-    QueryPerformanceCounter (&end);
+    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now () - start;
 
-    const double seconds = static_cast<double> (end.QuadPart - start.QuadPart) / static_cast<double> (frequency.QuadPart);
+    const double seconds = elapsed.count ();
     std::printf ("  10 s of audio in %.3f s, which is %.2f%% of one core\n", seconds, seconds * 10.0);
 }
 

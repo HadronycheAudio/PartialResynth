@@ -59,12 +59,14 @@ const Test kTests[] = {
     { L"parameter-state", testParameterState },
     { L"parameter-text", testParameterText },
 
+#if defined(_WIN32)
     { L"panel", testPanel },
+#endif
 };
 
 } // namespace
 
-int wmain (int argc, wchar_t** argv)
+HADRONYCHE_TEST_MAIN
 {
     return runTests (argc, argv, { "PartialResynthTests", kTests, std::size (kTests), measureCpu });
 }
