@@ -8,6 +8,10 @@
 
 #include "hadronyche/testhost/Runner.h"
 
+#if defined(__linux__)
+#include "hadronyche/testhost/PanelOpens.h"
+#endif
+
 #include <iterator>
 
 using namespace PartialResynth::Tests;
@@ -61,6 +65,8 @@ const Test kTests[] = {
 
 #if defined(_WIN32)
     { L"panel", testPanel },
+#elif defined(__linux__)
+    { L"panel-opens", Hadronyche::TestHost::testPanelOpens },
 #endif
 };
 

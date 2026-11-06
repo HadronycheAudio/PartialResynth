@@ -40,7 +40,7 @@ set(PARTIALRESYNTH_TESTS
     osc-waves osc-tuning osc-levels osc-aliasing
     filter-modes filter-resonance key-follow env-to-cutoff
     glide spread dry-wet volume block-sizes determinism extreme-settings parameter-state parameter-text
-    panel
+    panel panel-opens
 )
 
 hadronyche_add_host_tests(PartialResynthTests PartialResynth ${PARTIALRESYNTH_TESTS})
