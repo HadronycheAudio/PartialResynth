@@ -30,7 +30,7 @@ add_executable(PartialResynthTests
 
 target_include_directories(PartialResynthTests PRIVATE "${VST3_SDK_DIR}" "${CMAKE_SOURCE_DIR}/src")
 target_compile_definitions(PartialResynthTests PRIVATE UNICODE _UNICODE NOMINMAX)
-target_link_libraries(PartialResynthTests PRIVATE ReferenceFiddle user32 gdi32)
+target_link_libraries(PartialResynthTests PRIVATE hadronyche_params ReferenceFiddle user32 gdi32)
 add_dependencies(PartialResynthTests PartialResynth)
 
 # One CTest test per test in the program, so that a single one can be run with ctest -R.

@@ -1,8 +1,12 @@
 #pragma once
 
+#include "hadronyche/dsp/BandLimitedStep.h"
+
 #include <cmath>
 
 namespace PartialResynth {
+
+using Hadronyche::stepCorrection;
 
 // A band-limited oscillator. The saw and square use a 4-point polynomial correction around each step.
 class Oscillator
@@ -44,24 +48,6 @@ private:
     // high is nearly a sine anyway, so fading it out only loses a little at the very top.
     static constexpr double kFadeStart = 0.2;
     static constexpr double kFadeEnd = 0.25;
-
-    // A band-limited step: the integral of a cubic B-spline, minus the ideal step it replaces. x is the
-    // distance from the step in samples, and the correction reaches zero 2 samples away.
-    static double stepCorrection (double x)
-    {
-        if (x < -1.0)
-        {
-            const double a = x + 2.0;
-            return a * a * a * a / 24.0;
-        }
-        if (x < 0.0)
-            return 0.5 + x * (2.0 / 3.0 - x * x * (1.0 / 3.0 + x / 8.0));
-        if (x < 1.0)
-            return -0.5 + x * (2.0 / 3.0 - x * x * (1.0 / 3.0 - x / 8.0));
-
-        const double a = 2.0 - x;
-        return -a * a * a * a / 24.0;
-    }
 
     // The correction at the wrap, which is a step of +1 in units of its size.
     double wrapCorrection (double increment) const
