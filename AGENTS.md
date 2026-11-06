@@ -211,6 +211,7 @@ Rules for releases:
 - It has only been used on Windows, and other hosts than the owner's haven't been tried.
 - The installer isn't code-signed, so Windows warns users when they run it. The macOS one isn't signed by Apple or notarized, so macOS refuses it until the user allows it.
 - The Linux version has only been tried briefly, in REAPER on Debian 13, by the owner.
+- The test that opens the panel crashed once on CI as the test program exited, after all its checks had passed. It happened once in about 33 runs, and about 260 further runs didn't reproduce it. The cause isn't known, and it hasn't been seen in a host.
 - The Mac version hasn't been used in a real host on a real Mac. The tests measure its output, and Apple's `auval` validates it, on CI only.
 - Partials closer than about 86 Hz merge at 44.1 and 48 kHz, which is the width of the window's main lobe. Below about 90 Hz, adjacent harmonics can't be told apart.
 - There's no limiter. Two oscillators at full level, particularly saw or square, can go over full scale.
