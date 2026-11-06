@@ -198,10 +198,18 @@ Rules for releases:
 - **The installer is built and tested by HadronycheCore's `tools/macos/`.** `test-installer.sh` writes to `/Library`, so it's meant for CI machines.
 - **The panel test only exists on Windows,** because it uses Windows' mouse messages. Nothing automated opens the panel on macOS, so its look needs checking by eye.
 
+## Linux
+
+- **Use one build folder per configuration, with Ninja:** `cmake -S . -B build/Release -G Ninja -DCMAKE_BUILD_TYPE=Release`, then `cmake --build build/Release --target PartialResynthTests PartialResynth`. The SDK's Linux output paths break with a multi-configuration generator.
+- **`external/hadronychecore/tools/linux/install-build-packages.sh` installs the build's packages.** gtkmm and SQLite are only needed to configure, and the plug-in doesn't link them.
+- **The panel test only exists on Windows,** because it uses Windows' mouse messages. Nothing automated opens the panel on Linux, so its look needs checking by eye.
+- **The version built on a machine only loads on a glibc as new as that machine's.** Nothing here checks that yet, and nothing is released for Linux yet.
+
 ## Known limits
 
 - It has only been used on Windows, and other hosts than the owner's haven't been tried.
 - The installer isn't code-signed, so Windows warns users when they run it. The macOS one isn't signed by Apple or notarized, so macOS refuses it until the user allows it.
+- The Linux version has only been run by the tests and the validator, and hasn't been used in a real host.
 - The Mac version hasn't been used in a real host on a real Mac. The tests measure its output, and Apple's `auval` validates it, on CI only.
 - Partials closer than about 86 Hz merge at 44.1 and 48 kHz, which is the width of the window's main lobe. Below about 90 Hz, adjacent harmonics can't be told apart.
 - There's no limiter. Two oscillators at full level, particularly saw or square, can go over full scale.
