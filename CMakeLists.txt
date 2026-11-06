@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 # C is only used by the tests, which build Pure Data's original fiddle~ to compare the analysis against.
-project(PartialResynth VERSION 1.0.0 LANGUAGES C CXX)
+project(PartialResynth VERSION 1.0.1 LANGUAGES C CXX)
 
 # Can point at another checkout, to work on the library and a plug-in together.
 set(HADRONYCHE_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/hadronychecore" CACHE PATH "The HadronycheCore library")
