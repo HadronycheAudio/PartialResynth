@@ -22,18 +22,12 @@ add_executable(PartialResynthTests
     SynthTests.cpp
     PanelTest.cpp
     "${CMAKE_SOURCE_DIR}/src/dsp/FiddleAnalyzer.cpp"
-    "${VST3_SDK_DIR}/pluginterfaces/base/funknown.cpp"
-    "${VST3_SDK_DIR}/pluginterfaces/base/coreiids.cpp"
-    "${VST3_SDK_DIR}/pluginterfaces/base/ustring.cpp"
-    "${VST3_SDK_DIR}/public.sdk/source/common/memorystream.cpp"
 )
 
-target_include_directories(PartialResynthTests PRIVATE "${VST3_SDK_DIR}" "${CMAKE_SOURCE_DIR}/src")
-target_compile_definitions(PartialResynthTests PRIVATE UNICODE _UNICODE NOMINMAX)
-target_link_libraries(PartialResynthTests PRIVATE hadronyche_params ReferenceFiddle user32 gdi32)
+target_include_directories(PartialResynthTests PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(PartialResynthTests PRIVATE hadronyche_testhost ReferenceFiddle)
 add_dependencies(PartialResynthTests PartialResynth)
 
-# One CTest test per test in the program, so that a single one can be run with ctest -R.
 set(PARTIALRESYNTH_TESTS
     class-ids parameter-ids parameter-ranges saved-format buses latency-report
     fiddle-match fiddle-accuracy fiddle-floor fiddle-power fiddle-sample-rates
@@ -45,7 +39,4 @@ set(PARTIALRESYNTH_TESTS
     panel
 )
 
-foreach(test_name ${PARTIALRESYNTH_TESTS})
-    add_test(NAME ${test_name} COMMAND PartialResynthTests "$<TARGET_FILE:PartialResynth>" ${test_name})
-    set_tests_properties(${test_name} PROPERTIES TIMEOUT 300)
-endforeach()
+hadronyche_add_host_tests(PartialResynthTests PartialResynth ${PARTIALRESYNTH_TESTS})
