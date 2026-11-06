@@ -48,7 +48,7 @@ The plug-in has 1536 samples of latency at 44.1 and 48 kHz (35 and 32 ms), and i
 
 ## Getting the code
 
-The SDK is a pinned git submodule in `external/`:
+The SDK and HadronycheCore, the code shared by the Hadronyche plug-ins, are pinned git submodules in `external/`:
 
 ```powershell
 git -c core.longpaths=true clone --recurse-submodules <repo-url>
@@ -112,6 +112,7 @@ It's built with the following, which keep their own licences:
 
 - VST3 SDK: MIT (`external/vst3sdk/LICENSE.txt`)
 - VSTGUI (`external/vst3sdk/vstgui4/LICENSE`)
+- HadronycheCore: MIT (`external/hadronychecore/LICENSE`)
 - `fiddle~` from Pure Data, by Miller Puckette and Ted Apel, whose analysis is ported in `src/dsp/FiddleAnalyzer.cpp`: Standard Improved BSD License (`licenses/pure-data.txt`)
 
 VST is a registered trademark of Steinberg Media Technologies GmbH.

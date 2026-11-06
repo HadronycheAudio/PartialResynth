@@ -45,5 +45,6 @@ Source: "..\build\VST3\Release\PartialResynth.vst3\*"; DestDir: "{app}\PartialRe
 Source: "..\LICENSE"; DestDir: "{app}\PartialResynth.vst3\Contents\Resources\Licenses"; DestName: "PartialResynth-LICENSE.txt"; Flags: ignoreversion
 Source: "..\external\vst3sdk\LICENSE.txt"; DestDir: "{app}\PartialResynth.vst3\Contents\Resources\Licenses"; DestName: "VST3-SDK-LICENSE.txt"; Flags: ignoreversion
 Source: "..\external\vst3sdk\vstgui4\LICENSE"; DestDir: "{app}\PartialResynth.vst3\Contents\Resources\Licenses"; DestName: "VSTGUI-LICENSE.txt"; Flags: ignoreversion
+Source: "..\external\hadronychecore\LICENSE"; DestDir: "{app}\PartialResynth.vst3\Contents\Resources\Licenses"; DestName: "HadronycheCore-LICENSE.txt"; Flags: ignoreversion
 Source: "..\licenses\pure-data.txt"; DestDir: "{app}\PartialResynth.vst3\Contents\Resources\Licenses"; DestName: "Pure-Data-LICENSE.txt"; Flags: ignoreversion
 Source: "NOTICE.txt"; DestDir: "{app}\PartialResynth.vst3\Contents\Resources\Licenses"; Flags: ignoreversion
