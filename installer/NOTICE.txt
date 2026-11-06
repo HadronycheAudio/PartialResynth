@@ -8,6 +8,9 @@ licences are included in this folder, alongside PartialResynth's own.
 
 It also includes HadronycheCore, Copyright (c) 2026 Hadronyche, whose licence is in this folder too.
 
+The macOS version also includes Apple's AudioUnitSDK, Copyright (c) Apple Inc., whose licence is in this
+folder too.
+
 Its analysis is ported from fiddle~ in Pure Data:
 Copyright (c) 1997-1999 Miller Puckette and Ted Apel.
 Pure Data's licence is also included in this folder.
