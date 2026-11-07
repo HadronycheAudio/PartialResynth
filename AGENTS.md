@@ -204,7 +204,7 @@ Rules for releases:
 - **`external/hadronychecore/tools/linux/install-build-packages.sh` installs the build's packages.** gtkmm and SQLite are only needed to configure, and the plug-in doesn't link them.
 - **`panel-opens` needs an X server,** so run `xvfb-run -a ctest ...` where there's no display. It opens and closes the real editor, and nothing more: `panel`, which drives it, only exists on Windows, so the panel's look and its controls need checking by eye.
 - **The release is built in an `ubuntu:22.04` container on CI, not on the runner,** because a binary only loads on a glibc as new as the one it's built against. HadronycheCore's `tools/linux/test-tarball.sh` checks this, and CI runs the tarball on other distributions too.
-- **The LV2 is HadronycheCore's wrapper around the VST3's own classes, and hasn't been released.** Its `AGENTS.md` has the rules. It has audio, control ports, state, latency and transport, and no panel yet. The URI and symbols in `src/lv2/PluginInfo.cpp` become permanent at its first release, and `lv2-matches-vst3` compares it with the VST3, bit for bit.
+- **The LV2 is HadronycheCore's wrapper around the VST3's own classes, and hasn't been released.** Its `AGENTS.md` has the rules. It has audio, control ports, state, latency, transport and the VST3's panel. The URI, the panel's URI and the symbols in `src/lv2/PluginInfo.cpp` become permanent at its first release, and `lv2-matches-vst3` compares it with the VST3, bit for bit.
 
 ## Known limits
 
