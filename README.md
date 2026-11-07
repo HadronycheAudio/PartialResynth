@@ -169,7 +169,7 @@ Copy-Item -Recurse -Force build/VST3/Release/PartialResynth.vst3 "C:\Program Fil
 | `src/dsp/` | Also the voice, oscillator, filter and parameter smoothing |
 | `tests/` | Tests that drive the built plug-in like a host |
 | `tests/reference/` | Pure Data's original `fiddle~.c`, unchanged, for the tests to compare with |
-| `installer/` | The Windows installer, and the script that tests it. The macOS installer and the Linux tarball are built by HadronycheCore's `tools/macos/` and `tools/linux/` |
+| `installer/` | The Windows installer. HadronycheCore's `tools/windows/` tests it, and its `tools/macos/` and `tools/linux/` build the macOS installer and the Linux tarballs |
 | `docs/` | The behaviour specification and release notes |
 
 ## Contributing

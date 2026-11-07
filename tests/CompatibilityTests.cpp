@@ -28,19 +28,6 @@ static_assert (kOsc2Wave == 6 && kOsc2Level == 7 && kOsc2Coarse == 8 && kOsc2Fin
 static_assert (kFilterMode == 10 && kFilterCutoff == 11 && kFilterResonance == 12 && kFilterKeyFollow == 13 && kFilterEnvAmount == 14, "Parameter IDs are saved in projects");
 static_assert (kSpread == 15 && kDryWet == 16 && kVolume == 17, "Parameter IDs are saved in projects");
 
-template <typename T>
-T readAt (const std::vector<char>& bytes, size_t offset)
-{
-    T value {};
-    std::memcpy (&value, bytes.data () + offset, sizeof (value));
-    return value;
-}
-
-bool nearly (double a, double b)
-{
-    return std::abs (a - b) < 1e-6 * std::max (1.0, std::abs (b));
-}
-
 } // namespace
 
 void testClassIds ()

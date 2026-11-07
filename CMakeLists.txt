@@ -38,14 +38,7 @@ hadronyche_add_plugin(PartialResynth AU_TYPE aufx AU_SUBTYPE PrRs SOURCES
 )
 
 # --- LV2 ----------------------------------------------------------------------
-hadronyche_add_lv2(PartialResynth SOURCES
-    src/PluginEntry.cpp
-    src/Parameters.cpp
-    src/Processor.cpp
-    src/Controller.cpp
-    src/Editor.cpp
-    src/dsp/FiddleAnalyzer.cpp
-)
+hadronyche_add_lv2(PartialResynth)
 
 # --- Tests --------------------------------------------------------------------
 enable_testing()

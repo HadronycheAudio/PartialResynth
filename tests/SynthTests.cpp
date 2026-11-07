@@ -4,14 +4,10 @@
 #include "Harness.h"
 #include "Tests.h"
 
-#include "pluginterfaces/base/ustring.h"
-#include "public.sdk/source/common/memorystream.h"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 #include <limits>
 
 using namespace Steinberg;
@@ -481,47 +477,28 @@ void testParameterState ()
     const auto state = first.getStateBytes ();
 
     Plug second;
-    MemoryStream stream;
-    int32 written = 0;
-    stream.write (const_cast<char*> (state.data ()), static_cast<int32> (state.size ()), &written);
-    int64 position = 0;
-    stream.seek (0, IBStream::kIBSeekSet, &position);
-    check ("the processor takes a saved state", second.component->setState (&stream) == kResultOk);
-    check ("and saves it back the same", second.getStateBytes () == state);
-
-    stream.seek (0, IBStream::kIBSeekSet, &position);
-    check ("the controller takes it", second.controller->setComponentState (&stream) == kResultOk);
-    check ("and shows its values", std::abs (second.controller->getParamNormalized (kOsc2Level) - 0.75) < 1e-9);
+    check ("the processor and the controller take a saved state", second.setStateBytes (state));
+    check ("and it saves back the same", second.getStateBytes () == state);
+    check ("and the controller shows its values", std::abs (second.controller->getParamNormalized (kOsc2Level) - 0.75) < 1e-9);
 }
 
 void testParameterText ()
 {
     Plug plug;
 
-    const auto textOf = [&] (ParamId id, double plain, char* buffer) {
-        Vst::String128 text {};
-        plug.controller->getParamStringByValue (id, plug.controller->plainParamToNormalized (id, plain), text);
-        UString (text, str16BufferSize (Vst::String128)).toAscii (buffer, 128);
+    const auto text = [&] (ParamId id, double plain) {
+        return paramText (plug.controller, id, plug.controller->plainParamToNormalized (id, plain));
     };
 
-    char buffer[128] {};
-    textOf (kOsc1Wave, 0, buffer);
-    check ("wave 0 is Sine", std::strcmp (buffer, "Sine") == 0);
-    textOf (kOsc1Wave, 1, buffer);
-    check ("wave 1 is Saw", std::strcmp (buffer, "Saw") == 0);
-    textOf (kOsc2Wave, 2, buffer);
-    check ("wave 2 is Square", std::strcmp (buffer, "Square") == 0);
-    textOf (kFilterMode, 1, buffer);
-    check ("filter mode 1 is High-pass", std::strcmp (buffer, "High-pass") == 0);
-    textOf (kVolume, -60.0, buffer);
-    check ("the bottom of Volume is -inf", std::strcmp (buffer, "-inf") == 0);
-    textOf (kOsc1Coarse, 7, buffer);
-    check ("coarse shows whole semitones", std::strcmp (buffer, "7") == 0);
+    check ("wave 0 is Sine", text (kOsc1Wave, 0) == "Sine");
+    check ("wave 1 is Saw", text (kOsc1Wave, 1) == "Saw");
+    check ("wave 2 is Square", text (kOsc2Wave, 2) == "Square");
+    check ("filter mode 1 is High-pass", text (kFilterMode, 1) == "High-pass");
+    check ("the bottom of Volume is -inf", text (kVolume, -60.0) == "-inf");
+    check ("coarse shows whole semitones", text (kOsc1Coarse, 7) == "7");
 
-    Vst::String128 typed {};
-    UString (typed, str16BufferSize (Vst::String128)).fromAscii ("1000");
-    Vst::ParamValue value = 0.0;
-    check ("a typed value is understood", plug.controller->getParamValueByString (kFilterCutoff, typed, value) == kResultOk);
+    double value = 0.0;
+    check ("a typed value is understood", paramFromText (plug.controller, kFilterCutoff, "1000", value));
     check ("and it means what it says", std::abs (plug.controller->normalizedParamToPlain (kFilterCutoff, value) - 1000.0) < 0.01);
 }
 
