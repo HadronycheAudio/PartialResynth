@@ -44,3 +44,5 @@ set(PARTIALRESYNTH_TESTS
 )
 
 hadronyche_add_host_tests(PartialResynthTests PartialResynth ${PARTIALRESYNTH_TESTS})
+
+hadronyche_add_lv2_tests(PartialResynth)

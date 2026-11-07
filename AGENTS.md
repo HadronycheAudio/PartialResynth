@@ -204,14 +204,14 @@ Rules for releases:
 - **`external/hadronychecore/tools/linux/install-build-packages.sh` installs the build's packages.** gtkmm and SQLite are only needed to configure, and the plug-in doesn't link them.
 - **`panel-opens` needs an X server,** so run `xvfb-run -a ctest ...` where there's no display. It opens and closes the real editor, and nothing more: `panel`, which drives it, only exists on Windows, so the panel's look and its controls need checking by eye.
 - **The release is built in an `ubuntu:22.04` container on CI, not on the runner,** because a binary only loads on a glibc as new as the one it's built against. HadronycheCore's `tools/linux/test-tarball.sh` checks this, and CI runs the tarball on other distributions too.
-- **There's no LV2 version yet.** Linux releases are VST 3 only.
+- **The LV2 is HadronycheCore's wrapper around the VST3's own classes, and hasn't been released.** Its `AGENTS.md` has the rules. It has audio, control ports, state, latency and transport, and no panel yet. The URI and symbols in `src/lv2/PluginInfo.cpp` become permanent at its first release, and `lv2-matches-vst3` compares it with the VST3, bit for bit.
 
 ## Known limits
 
 - It has only been used on Windows, and other hosts than the owner's haven't been tried.
 - The installer isn't code-signed, so Windows warns users when they run it. The macOS one isn't signed by Apple or notarized, so macOS refuses it until the user allows it.
 - The Linux version has only been tried briefly, in REAPER on Debian 13, by the owner.
-- The test that opens the panel crashed once on CI as the test program exited, after all its checks had passed. It happened once in about 33 runs, and about 260 further runs didn't reproduce it. The cause isn't known, and it hasn't been seen in a host.
+- The test that opens the panel crashed on CI as the test program finished, after all its checks had passed. It has happened twice in several hundred CI runs, and about 260 runs on a local machine didn't reproduce it. The cause isn't known, and it hasn't been seen in a host.
 - The Mac version hasn't been used in a real host on a real Mac. The tests measure its output, and Apple's `auval` validates it, on CI only.
 - Partials closer than about 86 Hz merge at 44.1 and 48 kHz, which is the width of the window's main lobe. Below about 90 Hz, adjacent harmonics can't be told apart.
 - There's no limiter. Two oscillators at full level, particularly saw or square, can go over full scale.
