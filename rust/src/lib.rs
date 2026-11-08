@@ -306,7 +306,7 @@ impl Processor for PartialResynth {
         }
     }
 
-    fn prepare(&mut self, sample_rate: f64, _max_block_size: usize) {
+    fn prepare(&mut self, sample_rate: f64, _max_block_size: usize, params: &Params<'_>) {
         self.sample_rate = sample_rate;
         self.window_size = window_size_for(sample_rate);
         let hop = self.window_size / 4;
@@ -339,12 +339,7 @@ impl Processor for PartialResynth {
         self.silent_input_samples = 0;
         self.is_first_block = true;
 
-        // The parameters' defaults, until the first block brings the host's values.
-        let defaults: Vec<f64> = PARAMS
-            .iter()
-            .map(|spec| spec.plain_to_normalized(spec.default))
-            .collect();
-        self.apply_parameters(&Params::new(&PARAMS, &defaults));
+        self.apply_parameters(params);
         self.snap_smoothers();
     }
 
@@ -392,13 +387,13 @@ impl Processor for PartialResynth {
         Output::Sound
     }
 
-    fn latency(&self) -> u32 {
-        latency_for(window_size_for(self.sample_rate)) as u32
+    fn latency(&self, sample_rate: f64) -> u32 {
+        latency_for(window_size_for(sample_rate)) as u32
     }
 
     /// The sound stops at the input's silence plus the buffers, and the silence flags say when.
-    fn tail(&self) -> Tail {
-        let window_size = window_size_for(self.sample_rate);
+    fn tail(&self, sample_rate: f64) -> Tail {
+        let window_size = window_size_for(sample_rate);
         Tail::Samples((window_size + latency_for(window_size)) as u32)
     }
 }
