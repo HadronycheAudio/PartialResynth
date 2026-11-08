@@ -11,18 +11,6 @@ void testSavedFormat ();
 void testBuses ();
 void testLatencyReport ();
 
-// FiddleTests.cpp
-void testFiddleMatch ();
-void testFiddleAccuracy ();
-void testFiddleFloor ();
-void testFiddlePower ();
-void testFiddleSampleRates ();
-void testTrackerLoudest ();
-void testTrackerContinuity ();
-void testTrackerFade ();
-void testTrackerNewWaits ();
-void testTrackerKeepsPlace ();
-
 // ResynthTests.cpp
 void testResynthPartials ();
 void testResynthLoudest ();

@@ -6,7 +6,9 @@ PartialResynth is a VST® 3 effect for Windows that finds the five loudest parti
 
 `docs/signal-path.md` is the behaviour specification. `README.md` covers building and usage.
 
-Code shared with the other Hadronyche plug-ins is in the `HadronycheCore` submodule, at `external/hadronychecore`: the parameters' curves and saved format, the processor and controller base classes, the module entry, `PanelEditor`, `Smoother`, the test host, the build setup and CI. Its `AGENTS.md` has its own rules.
+Code shared with the other Hadronyche plug-ins is in the `HadronycheCore` submodule, at `external/hadronychecore`: the parameters' curves and saved format, the frame that the Rust side fits into on both sides of the boundary, the module entry, `PanelEditor`, `Smoother`, the state-variable filter kernel, the test host, the build setup and CI. Its `AGENTS.md` has its own rules.
+
+The signal processing and the parameter table are Rust, in `rust/`. The crate implements HadronycheCore's `Processor` trait, and depends on its `rust/hadronyche-plugin` and `rust/hadronyche-dsp` through the submodule. `hadronyche_add_rust` in `CMakeLists.txt` builds it into the plug-in, and the C++ in `src/` is the VST3 classes around it, on `RustProcessor` and `RustController`. Rust from [rustup](https://rustup.rs) is a build requirement on every system.
 
 ## Commands
 
@@ -35,14 +37,14 @@ cmake --build build --config Release --target PartialResynthTests
 ctest --test-dir build -C Release --output-on-failure -j 4
 
 # Run a single test, and list them
-ctest --test-dir build -C Release --output-on-failure -R "^fiddle-match$"
+ctest --test-dir build -C Release --output-on-failure -R "^resynth-partials$"
 ctest --test-dir build -C Release -N
 
 # Install for testing in Cubase. Close Cubase first, and use an elevated shell.
 Copy-Item -Recurse -Force build/VST3/Release/PartialResynth.vst3 "C:\Program Files\Common Files\VST3\"
 ```
 
-There's no linter or formatter.
+There's no linter or formatter for the C++. In `rust/`, `cargo fmt` formats, and `cargo clippy --all-targets -- -D warnings` and `cargo test` have to pass. `cargo test` runs the analysis against the original `fiddle~`, and checks that `src/ParamIds.h` is what the parameter table generates, which `HADRONYCHE_UPDATE_HEADERS=1 cargo test` rewrites.
 
 Follow the existing style, which comes from the SDK: a space before call parentheses (`foo (x)`), `_member` for private members, `kName` for constants, and comments that explain why rather than what.
 
@@ -54,31 +56,34 @@ People use this plug-in in real projects. Breaking these rules damages saved pro
 
 - **Never change the Audio Unit codes,** `aufx` `PrRs` here and the manufacturer `Hdrn` in HadronycheCore. Hosts use them to find the plug-in in saved projects.
 - **Never change the class IDs in `src/PluginConfig.h`.** Hosts use them to find the plug-in in saved projects.
-- **Never renumber, reorder or remove entries in `ParamId`** (`src/Parameters.h`). Their values are saved in projects and automation. Add new parameters just before `kParamCount`, and add the matching row to `kSpecs` in `src/Parameters.cpp`, which is listed in the same order.
+- **Never reorder or remove an entry in `Param`** (`rust/src/lib.rs`). Their positions are saved in projects and automation, and `src/ParamIds.h` is generated from them. Add a new parameter at the end, with its spec on the same line.
 - **Don't change the range or curve of an existing parameter.** Hosts store values normalized to 0..1, so this silently changes what saved projects sound like. If it's unavoidable, migrate old values and bump the state version.
-- **Only ever add to the end of `kWaves` and `kFilterModes`,** and keep `Oscillator::Wave` and `StateVariableFilter::Mode` in step with them. Projects save a position in the list.
-- **Changing the saved format requires bumping `kStateVersion` and still reading every older version.** The format is `int32` version, `int32` count, then `int32` ID and `double` normalized value pairs (`writeParamState`). A state without a parameter leaves it at its default, and an unknown one is skipped.
+- **Only ever add to the end of `WAVES` and `FILTER_MODES`,** and keep `Wave::from_index` and `mode_from_index` in step with them. Projects save a position in the list.
+- **Changing the saved format requires bumping `STATE_VERSION` and converting every older version in `migrate_param`.** The format is HadronycheCore's `ParamState.h`: `int32` version, `int32` count, then `int32` ID and `double` normalized value pairs. A state without a parameter leaves it at its default, and an unknown one is skipped.
+- **The Rust port is bit for bit what the C++ was,** which HadronycheCore's `tools/nulltest/` showed against the last C++ build, so a change in the sound is a change, not rounding. Keep the arithmetic in the order it's written, `f32` and `f64` where they were, and a power of 2 through `hadronyche_dsp::pow2`, as HadronycheCore's `AGENTS.md` explains.
 - **Loading must tolerate missing or damaged data.**
 
 ### The analysis
 
-- **`FiddleAnalyzer` is a port, not a design.** It keeps the original's arithmetic, names and even its rounded constants, so that `fiddle-match` can hold it to the original. Don't "improve" or tidy its maths. A deliberate change of behaviour belongs in `PartialTracker` or `Processor`, or in the short list of differences at the top of `FiddleAnalyzer.h`.
-- **Don't edit `tests/reference/fiddle~.c`.** It's Pure Data's file, byte for byte. Only `m_pd.h` next to it is ours.
+- **`FiddleAnalyzer` is a port, not a design.** It keeps the original's arithmetic, names and even its rounded constants, so that `fiddle_match` in `rust/tests/fiddle.rs` can hold it to the original. Don't "improve" or tidy its maths, and leave its `clippy` allowances where they are. A deliberate change of behaviour belongs in `PartialTracker` or the processor, or in the short list of differences at the top of `rust/src/fiddle_analyzer.rs`.
+- **Don't edit `tests/reference/fiddle~.c`.** It's Pure Data's file, byte for byte. Only `m_pd.h` and `ReferenceFiddle.c` next to it are ours, and `rust/reference-fiddle` builds them for the tests alone.
+- **The original keeps state in statics, so its tests take turns.** `ReferenceFiddle` holds a lock for its life, because cargo runs tests on parallel threads where the C++ test program ran one process per test.
 - **The port must keep the original's copyright notice,** and `licenses/pure-data.txt` must accompany anything distributed.
 
 ### The audio thread
 
-`Processor::process` and everything it calls runs on the audio thread, including `src/dsp/`, except `FiddleAnalyzer::prepare` and `Voice::prepare`.
+`PartialResynth::process` in `rust/src/lib.rs`, and everything it calls, runs on the audio thread. `prepare`, and the `prepare` of the analyzers and voices, don't.
 
-- **No allocation, locks, file access, system calls or anything else that can block.** This includes `std::vector` growth, `std::string` and `std::function` copies. The failure is audio dropouts that may not show up in testing.
+- **No allocation, locks, file access, system calls or anything else that can block.** This includes a `Vec` growing. The failure is audio dropouts that may not show up in testing, though `lv2-matches-vst3` fails if a block allocates.
+- **A panic is a bug, even though HadronycheCore's boundary catches it.** After one, that instance of the plug-in stays silent for good, which is what a user would notice.
 
 ### Sound and timing
 
-- **`getLatencySamples` must stay in step with what actually happens.** It's half the window plus the hop. The dry delay uses the same value, and `latency-alignment` measures both.
+- **`latency` must stay in step with what actually happens.** It's half the window plus the hop. The dry delay uses the same value, and `latency-alignment` measures both.
 - **A voice's ramps last exactly as long as the gap between frames.** `PartialTracker` relies on this: a voice given zero is exactly silent by the next frame, and that's when it can take on a new partial. Changing one means changing the other.
 - **Only a silent voice changes partial.** Re-pitching one that can be heard is the jump that following partials exists to remove.
-- **The output doesn't depend on the block size,** even across sleeping, which is why `skipSilence` keeps the analyzers' place and `block-sizes` checks for exact equality.
-- **`Hadronyche::Smoother` must stay double precision.** In single precision it stalls just short of its target.
+- **The output doesn't depend on the block size,** even across sleeping, which is why `skip_silence` keeps the analyzers' place and `block-sizes` checks for exact equality.
+- **`Smoother` must stay double precision, and `step_f32` is not `step`.** In single precision it stalls just short of its target.
 
 ### Decisions made by the project owner
 
@@ -97,13 +102,14 @@ In `docs/signal-path.md`, **Requirement** marks the owner's decisions and **Prop
 
 - **Don't edit anything in `external/vst3sdk`.** It's a submodule pinned to `v3.8.1_build_84`. `git submodule status` shows a misleading `v3.7.3...` label for that same commit, so check with `git -C external/vst3sdk describe --tags`.
 - **Don't edit `external/hadronychecore` from here.** Change it in its own repository, and move the submodule here afterwards, once the new version has been compared with the old as its `AGENTS.md` describes.
+- **The Rust side builds from the submodule, even with `HADRONYCHE_CORE_DIR` set,** because Cargo can't redirect a path dependency. To work on both, point the submodule at the commit in the other checkout, and the configure stops when the two differ.
 - Don't change git configuration. Commit or push only when asked.
 
 ## Architecture
 
 ### Signal path
 
-`Processor::render` runs this for every sample:
+`PartialResynth::render` in `rust/src/lib.rs` runs this for every sample:
 
 ```
              ┌─→ Dry delay ───────────────────────────────────────────────┐
@@ -119,17 +125,17 @@ Voice:  Osc 1 ─┐
 
 | Thread | Runs | Talks to the others through |
 | --- | --- | --- |
-| Audio | `Processor::process` | Atomics only |
+| Audio | `RustProcessor::process`, and `PartialResynth::process` in Rust | Atomics only |
 | UI | `Editor`, on a 33 ms timer | The controller's parameters |
 | Host | `setState`, `getState`, `setActive` | Atomics |
 
-The processor and controller share no memory, so the plug-in is marked as distributable. `getParamSpec` is the one definition of every parameter's range and text, shared by `Processor`, `Controller` and `Editor`. The last parameter value per block is used, followed by smoothing.
+The processor and controller share no memory, so the plug-in is marked as distributable. `PARAMS` in `rust/src/lib.rs` is the one definition of every parameter's range and text: the Rust side reads it directly, and `Controller`, `Editor` and `src/lv2/PluginInfo.cpp` read it through `Hadronyche::RustPlugin::getSpec`. The last parameter value per block is used, followed by smoothing.
 
 ### The analysis
 
 - **Two copies of `FiddleAnalyzer`** run half a hop apart. Each does exactly what the original does, every half window, and together they give a frame every quarter window.
 - **The window scales with the sample rate:** 2048 up to 64 kHz, 4096 up to 128 kHz, then 8192. This keeps its length in time.
-- **Threshold** is converted to the original's power scale with `getFullScalePower`, which depends on the window.
+- **Threshold** is converted to the original's power scale with `full_scale_power`, which depends on the window.
 
 ### The voices
 
@@ -155,18 +161,18 @@ Before calling a change done:
 
 `.github/workflows/ci.yml` builds Debug and Release and runs all of this on every push and pull request, through HadronycheCore's `plugin-ci.yml`, whose commit it pins. Don't weaken or skip it to get a change through. When the submodule moves, move the commit in `ci.yml` with it.
 
-`tests/` builds one program, `PartialResynthTests`, which loads the built plug-in and drives it through the VST3 interfaces, the way a host does. `FiddleTests.cpp` is the exception: it compiles `FiddleAnalyzer.cpp` and `PartialTracker.h` in directly, because a host can't see what they produce.
+`tests/` builds one program, `PartialResynthTests`, which loads the built plug-in and drives it through the VST3 interfaces, the way a host does. The analysis and the tracker, which a host can't see the results of, are tested in Rust instead, by `rust/tests/fiddle.rs`, which `cargo test` in `rust/` runs, and CI runs on all three systems.
 
 | File | Covers |
 | --- | --- |
 | `CompatibilityTests.cpp` | Class IDs, parameter IDs and ranges, the saved format, the buses and the latency |
-| `FiddleTests.cpp` | The port against the original `fiddle~`, frame by frame, and the tracker |
+| `rust/tests/fiddle.rs` | The port against the original `fiddle~`, frame by frame, and the tracker |
 | `ResynthTests.cpp` | The whole path: partials in, voices out, and the timing |
 | `SynthTests.cpp` | The oscillators, filter, glide, spread, dry/wet, volume, state and parameter text |
 | `PanelTest.cpp` | The real editor, driven with mouse messages |
 
 - **Never change an expected value in `CompatibilityTests.cpp` to make a test pass.** Those values are written out by hand on purpose, and a failure there means the change would damage saved projects. Adding new parameters to them is fine, and expected.
-- **Don't loosen a limit elsewhere to get a test passing** without working out why it failed. The limits in `fiddle-match` are close to what the port achieves on purpose: looser ones missed a 1% error in a filter coefficient on most of the signals.
+- **Don't loosen a limit elsewhere to get a test passing** without working out why it failed. The limits in `fiddle_match` are close to what the port achieves on purpose: looser ones missed a 1% error in a filter coefficient on most of the signals.
 - **To add a test,** add it to `Tests.h`, `kTests` in `TestMain.cpp` and `PARTIALRESYNTH_TESTS` in `tests/CMakeLists.txt`.
 - **`PanelTest.cpp` clicks fixed positions,** so moving the panel's controls means updating the positions at the top of that file. It can't open the menus, whose pop-ups would block it.
 - **To see the panel,** set `PARTIALRESYNTH_SCREENSHOTS` to a folder before running the `panel` test, which saves a BMP at each step.

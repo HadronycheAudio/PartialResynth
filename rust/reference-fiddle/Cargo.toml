@@ -1,0 +1,13 @@
+# Pure Data's original fiddle~, from tests/reference, behind the small C interface there, so that the Rust port's
+# tests can compare every frame with it. Nothing but those tests uses this.
+
+[package]
+name = "reference-fiddle"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+publish = false
+
+[build-dependencies]
+cc = "1"

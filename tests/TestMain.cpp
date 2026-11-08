@@ -26,17 +26,6 @@ const Test kTests[] = {
     { L"buses", testBuses },
     { L"latency-report", testLatencyReport },
 
-    { L"fiddle-match", testFiddleMatch },
-    { L"fiddle-accuracy", testFiddleAccuracy },
-    { L"fiddle-floor", testFiddleFloor },
-    { L"fiddle-power", testFiddlePower },
-    { L"fiddle-sample-rates", testFiddleSampleRates },
-    { L"tracker-loudest", testTrackerLoudest },
-    { L"tracker-continuity", testTrackerContinuity },
-    { L"tracker-fade", testTrackerFade },
-    { L"tracker-new-waits", testTrackerNewWaits },
-    { L"tracker-keeps-place", testTrackerKeepsPlace },
-
     { L"resynth-partials", testResynthPartials },
     { L"resynth-loudest", testResynthLoudest },
     { L"resynth-continuous", testResynthContinuous },
