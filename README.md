@@ -34,7 +34,7 @@ There's also an LV2 version, in `PartialResynth-<version>-Linux-x86_64-LV2.tar.g
 
 **Are you a Mac user who's ready to commit to testing? You're more than welcome!** Please [open an issue](https://github.com/HadronycheAudio/PartialResynth/issues/new) saying which Mac, macOS version and host you use.
 
-To build it yourself, you need Xcode, CMake 3.25 or newer, and an internet connection the first time, which fetches Apple's AudioUnitSDK:
+To build it yourself, you need Xcode, CMake 3.25 or newer, [Rust](https://rustup.rs) with both Mac targets (`rustup target add aarch64-apple-darwin x86_64-apple-darwin`), and an internet connection the first time, which fetches Apple's AudioUnitSDK:
 
 ```bash
 git clone --recurse-submodules https://github.com/HadronycheAudio/PartialResynth.git
@@ -57,7 +57,7 @@ ctest --test-dir build -C Release --output-on-failure
 > [!NOTE]
 > **The Linux version is new.** It passes the automated tests on Ubuntu 22.04 and 24.04 and Debian 12 and 13, and it has been tried briefly by hand in REAPER on Debian 13. Other hosts and distributions haven't been tried. Please [open an issue](https://github.com/HadronycheAudio/PartialResynth/issues/new) saying which distribution and host you use if something goes wrong.
 
-To build it yourself, you need CMake 3.25 or newer, and the packages that this script installs on Debian or Ubuntu:
+To build it yourself, you need CMake 3.25 or newer, [Rust](https://rustup.rs), and the packages that this script installs on Debian or Ubuntu:
 
 ```bash
 git clone --recurse-submodules https://github.com/HadronycheAudio/PartialResynth.git
@@ -112,6 +112,7 @@ The plug-in has 1536 samples of latency at 44.1 and 48 kHz (35 and 32 ms), and i
 
 - Visual Studio 2022 with the "Desktop development with C++" workload
 - CMake 3.25 or newer
+- [Rust](https://rustup.rs), which builds the signal processing in `rust/` into the plug-in
 - Git
 
 ## Getting the code
@@ -160,15 +161,18 @@ Copy-Item -Recurse -Force build/VST3/Release/PartialResynth.vst3 "C:\Program Fil
 | --- | --- |
 | `src/PluginConfig.h` | Plug-in name, vendor details and class IDs |
 | `src/PluginEntry.cpp` | VST3 module entry, registers the classes below |
-| `src/Parameters.*` | Parameter IDs, ranges and text, plus saving and loading their values |
-| `src/Processor.*` | Runs the analysis, the voices and the dry path |
+| `rust/src/lib.rs` | The parameters, with their IDs, ranges and text, and the processor that runs the analysis, the voices and the dry path |
+| `rust/src/fiddle_analyzer.rs` | The port of `fiddle~`'s peak analysis |
+| `rust/src/partial_tracker.rs` | Chooses the partials, and keeps each with its voice |
+| `rust/src/` | Also the voice, oscillator and filter |
+| `rust/tests/fiddle.rs` | The port against the original `fiddle~`, frame by frame, and the tracker |
+| `rust/reference-fiddle/` | Builds the original for those tests, and nothing else |
+| `src/ParamIds.h` | The parameter IDs for the C++ side, generated from `rust/` |
+| `src/Processor.*` | The VST3 audio component, which HadronycheCore's `RustProcessor` runs on the Rust side |
 | `src/Controller.*` | Registers the parameters and creates the editor |
 | `src/Editor.*` | The plug-in window |
-| `src/dsp/FiddleAnalyzer.*` | The port of `fiddle~`'s peak analysis |
-| `src/dsp/PartialTracker.h` | Chooses the partials, and keeps each with its voice |
-| `src/dsp/` | Also the voice, oscillator, filter and parameter smoothing |
 | `tests/` | Tests that drive the built plug-in like a host |
-| `tests/reference/` | Pure Data's original `fiddle~.c`, unchanged, for the tests to compare with |
+| `tests/reference/` | Pure Data's original `fiddle~.c`, unchanged, for the Rust tests to compare with |
 | `installer/` | The Windows installer. HadronycheCore's `tools/windows/` tests it, and its `tools/macos/` and `tools/linux/` build the macOS installer and the Linux tarballs |
 | `docs/` | The behaviour specification and release notes |
 
@@ -186,6 +190,6 @@ It's built with the following, which keep their own licences:
 - VSTGUI (`external/vst3sdk/vstgui4/LICENSE`)
 - HadronycheCore: MIT (`external/hadronychecore/LICENSE`)
 - Apple's AudioUnitSDK, on macOS only: Apache 2.0
-- `fiddle~` from Pure Data, by Miller Puckette and Ted Apel, whose analysis is ported in `src/dsp/FiddleAnalyzer.cpp`: Standard Improved BSD License (`licenses/pure-data.txt`)
+- `fiddle~` from Pure Data, by Miller Puckette and Ted Apel, whose analysis is ported in `rust/src/fiddle_analyzer.rs`: Standard Improved BSD License (`licenses/pure-data.txt`)
 
 VST is a registered trademark of Steinberg Media Technologies GmbH.

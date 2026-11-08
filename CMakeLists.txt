@@ -18,23 +18,17 @@ include("${HADRONYCHE_CORE_DIR}/cmake/HadronychePlugin.cmake")
 hadronyche_use_vst3_sdk()
 
 # --- Plug-in ------------------------------------------------------------------
+hadronyche_add_rust(PartialResynth)
 hadronyche_add_plugin(PartialResynth AU_TYPE aufx AU_SUBTYPE PrRs SOURCES
     src/PluginConfig.h
     src/PluginEntry.cpp
-    src/Parameters.h
-    src/Parameters.cpp
+    src/ParamIds.h
     src/Processor.h
     src/Processor.cpp
     src/Controller.h
     src/Controller.cpp
     src/Editor.h
     src/Editor.cpp
-    src/dsp/FiddleAnalyzer.h
-    src/dsp/FiddleAnalyzer.cpp
-    src/dsp/Oscillator.h
-    src/dsp/PartialTracker.h
-    src/dsp/StateVariableFilter.h
-    src/dsp/Voice.h
 )
 
 # --- LV2 ----------------------------------------------------------------------
