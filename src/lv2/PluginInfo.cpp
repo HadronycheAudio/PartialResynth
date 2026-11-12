@@ -27,6 +27,7 @@ const char* const kSymbols[] = {
     "spread",
     "dry_wet",
     "volume",
+    "partials",
 };
 
 static_assert (sizeof (kSymbols) / sizeof (kSymbols[0]) == PartialResynth::kParamCount, "One symbol for each parameter");
@@ -42,7 +43,7 @@ const Hadronyche::Lv2::PluginInfo& Hadronyche::Lv2::getPluginInfo ()
         Hadronyche::RustPlugin::getSpec,
         PartialResynth::kParamCount,
         kSymbols,
-        2, // LV2 treats an odd minor version as a development build.
+        4, // LV2 treats an odd minor version as a development build. Raised when a port was added, as LV2 asks.
         0,
         true, // Audio input
         false, // MIDI

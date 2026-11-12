@@ -5,7 +5,7 @@
 ```
              ┌─→ Dry delay ───────────────────────────────────────────────┐
 In (stereo) ─┤                                                            ├→ Dry/wet → Volume → Out
-             └─→ Mono → 2 × fiddle~ → Tracker → 5 voices → Spread ────────┘
+             └─→ Mono → 2 × fiddle~ → Tracker → 5 to 24 voices → Spread ──┘
 ```
 
 ## Analysis
@@ -19,7 +19,7 @@ In (stereo) ─┤                                                            �
 
 ### Differences from fiddle~
 
-- **Requirement:** it takes the five loudest peaks. `fiddle~` outputs the first it finds, going up from the lowest frequency.
+- **Requirement:** it takes the loudest peaks, as many as there are voices. `fiddle~` outputs the first it finds, going up from the lowest frequency.
 - **Proposed:** below the threshold, there are no peaks, so the voices fade out. `fiddle~` goes on reporting the last peaks it found for as long as the input stays below its threshold, which would make the voices drone. `fiddle-floor` shows this.
 
 ### Threshold
@@ -34,10 +34,11 @@ Measured against the original, across eight signals including harmonic tones, no
 - **Proposed:** a peak is the same partial as a voice's if it's within a semitone, per frame. They're matched closest first.
 - **Proposed:** a peak being played counts as 3 dB louder when choosing the loudest, so that two peaks of about the same level, with one place between them, don't take turns.
 - **Proposed:** a voice with no peak fades out over one frame, keeping its pitch. Only a silent voice takes on a new partial. When all the voices are busy, a new partial waits until a voice has faded, which is one frame.
+- **Proposed:** when Partials is lowered, the voices beyond the new count are left without a partial, so they fade out over one frame like any other, and the first voices go on. When it's raised, the waiting partials get the new voices in the next frame.
 
 ## Voices
 
-- **Requirement:** five voices, one per partial, each with two oscillators and a filter. All of them share one set of controls.
+- **Requirement:** one voice per partial, each with two oscillators and a filter, and Partials sets how many there are, from 5 to 24. The default is 5, which is what the plug-in had before the control existed, so that projects saved then play as they did. More voices resolve a sound into more of its partials, and fewer reduce it to its strongest. All of them share one set of controls.
 - **Requirement:** the envelope is always the one from the analysis, and there's no other.
 - **Proposed:** the level ramps linearly from one frame's amplitude to the next. The pitch does the same, in octaves.
 - **Proposed:** the level is applied after the filter, so the voice has no tail once its partial has gone.
@@ -69,7 +70,7 @@ Measured against the original, across eight signals including harmonic tones, no
 ## Output
 
 - **Requirement:** stereo spread for the voices.
-- **Proposed:** at 100%, the voices are at the centre, half left, half right, hard left and hard right, in that order. It's at constant power, and at 0% the left and right channels are identical, at the same level as with no pan law at all. Hard-panned voices are therefore 3 dB up on that side.
+- **Proposed:** at 100%, the first voice is at the centre, and the rest go left and right in turn, each further out than the last on its side, so that the last on each side is at the edge. With five, that's centre, half left, half right, hard left and hard right. With an even count, the left has one more voice than the right. It's at constant power, and at 0% the left and right channels are identical, at the same level as with no pan law at all. Hard-panned voices are therefore 3 dB up on that side. The positions follow the count, so changing Partials moves the voices that are playing.
 - **Proposed:** Dry/wet at 50% plays both at full level, as in LoopTexturer. The dry path stays in stereo, and is delayed to line up with the voices.
 - **Proposed:** Volume goes from -60 dB, which is silent, to +6 dB. There's no limiter.
 

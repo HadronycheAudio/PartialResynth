@@ -24,7 +24,7 @@ endif()
 
 set(PARTIALRESYNTH_TESTS
     class-ids parameter-ids parameter-ranges saved-format buses latency-report
-    resynth-partials resynth-loudest resynth-continuous resynth-follows resynth-silence resynth-threshold latency-alignment
+    resynth-partials resynth-loudest resynth-continuous resynth-follows resynth-silence resynth-threshold resynth-count latency-alignment
     osc-waves osc-tuning osc-levels osc-aliasing
     filter-modes filter-resonance key-follow env-to-cutoff
     glide spread dry-wet volume block-sizes determinism extreme-settings parameter-state parameter-text

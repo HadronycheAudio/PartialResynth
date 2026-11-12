@@ -28,6 +28,7 @@ enum ParamId : Steinberg::Vst::ParamID
     kSpread,
     kDryWet,
     kVolume,
+    kPartials,
     kParamCount
 };
 

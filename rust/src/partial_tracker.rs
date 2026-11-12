@@ -2,7 +2,12 @@
 
 use crate::fiddle_analyzer::{MAX_PEAKS, SpectralPeak};
 
-pub const VOICE_COUNT: usize = 5;
+/// The voices exist for the most partials the Partials control can ask for, and the count it's at says how many of
+/// them the tracker gives partials to. The default is what the plug-in always had, so that projects saved before the
+/// control existed play as they did.
+pub const MAX_VOICE_COUNT: usize = 24;
+pub const MIN_VOICE_COUNT: usize = 5;
+pub const DEFAULT_VOICE_COUNT: usize = 5;
 
 /// What one voice should play from the next frame on.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -13,7 +18,7 @@ pub struct Target {
     pub is_new: bool,
 }
 
-pub type Targets = [Target; VOICE_COUNT];
+pub type Targets = [Target; MAX_VOICE_COUNT];
 
 /// Beyond this between frames, a peak counts as a different partial. It's about what vibrato and a fast slide cover
 /// in a frame. Past that, the old partial fades as the new one comes in.
@@ -33,6 +38,7 @@ fn semitones_between(a: f32, b: f32) -> f32 {
 /// of peaks.
 #[derive(Clone, Debug)]
 pub struct PartialTracker {
+    voice_count: usize,
     targets: Targets,
     scores: [f32; MAX_PEAKS],
     order: [usize; MAX_PEAKS],
@@ -41,6 +47,7 @@ pub struct PartialTracker {
 impl Default for PartialTracker {
     fn default() -> Self {
         Self {
+            voice_count: DEFAULT_VOICE_COUNT,
             targets: Targets::default(),
             scores: [0.0; MAX_PEAKS],
             order: [0; MAX_PEAKS],
@@ -53,15 +60,22 @@ impl PartialTracker {
         self.targets = Targets::default();
     }
 
+    /// How many voices to play partials with, from the next frame on. Lowering it leaves the voices beyond the count
+    /// with no partial, so they fade out over that frame, and raising it gives the waiting partials voices.
+    pub fn set_voice_count(&mut self, count: usize) {
+        self.voice_count = count.clamp(1, MAX_VOICE_COUNT);
+    }
+
     pub fn update(&mut self, peaks: &[SpectralPeak]) -> &Targets {
         let chosen_count = self.choose_loudest(peaks);
 
-        let mut is_voice_taken = [false; VOICE_COUNT];
-        let mut is_peak_taken = [false; VOICE_COUNT];
+        let mut is_voice_taken = [false; MAX_VOICE_COUNT];
+        let mut is_peak_taken = [false; MAX_VOICE_COUNT];
         self.continue_partials(peaks, chosen_count, &mut is_voice_taken, &mut is_peak_taken);
 
-        // A voice with no partial left fades out, and keeps its pitch while it does.
-        let mut is_fading_out = [false; VOICE_COUNT];
+        // A voice with no partial left fades out, and keeps its pitch while it does. A voice beyond the count, after
+        // it has been lowered, is one of those.
+        let mut is_fading_out = [false; MAX_VOICE_COUNT];
         for (v, target) in self.targets.iter_mut().enumerate() {
             target.is_new = false;
             is_fading_out[v] = !is_voice_taken[v] && target.amplitude > 0.0;
@@ -75,7 +89,7 @@ impl PartialTracker {
     }
 
     fn is_being_played(&self, frequency: f32) -> bool {
-        self.targets.iter().any(|target| {
+        self.targets[..self.voice_count].iter().any(|target| {
             target.amplitude > 0.0 && semitones_between(target.frequency, frequency) <= MAX_JUMP_SEMITONES
         })
     }
@@ -96,7 +110,7 @@ impl PartialTracker {
         let scores = &self.scores;
         self.order[..peaks.len()]
             .sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap_or(core::cmp::Ordering::Equal));
-        peaks.len().min(VOICE_COUNT)
+        peaks.len().min(self.voice_count)
     }
 
     /// Repeatedly takes the closest pair of a sounding voice and a chosen peak.
@@ -104,14 +118,14 @@ impl PartialTracker {
         &mut self,
         peaks: &[SpectralPeak],
         chosen_count: usize,
-        is_voice_taken: &mut [bool; VOICE_COUNT],
-        is_peak_taken: &mut [bool; VOICE_COUNT],
+        is_voice_taken: &mut [bool; MAX_VOICE_COUNT],
+        is_peak_taken: &mut [bool; MAX_VOICE_COUNT],
     ) {
         loop {
             let mut closest = MAX_JUMP_SEMITONES;
             let mut best: Option<(usize, usize)> = None;
 
-            for (v, target) in self.targets.iter().enumerate() {
+            for (v, target) in self.targets[..self.voice_count].iter().enumerate() {
                 if is_voice_taken[v] || target.amplitude <= 0.0 {
                     continue;
                 }
@@ -147,9 +161,9 @@ impl PartialTracker {
         &mut self,
         peaks: &[SpectralPeak],
         chosen_count: usize,
-        is_voice_taken: &[bool; VOICE_COUNT],
-        is_fading_out: &[bool; VOICE_COUNT],
-        is_peak_taken: &[bool; VOICE_COUNT],
+        is_voice_taken: &[bool; MAX_VOICE_COUNT],
+        is_fading_out: &[bool; MAX_VOICE_COUNT],
+        is_peak_taken: &[bool; MAX_VOICE_COUNT],
     ) {
         let mut voice = 0;
         for c in 0..chosen_count {
@@ -157,10 +171,10 @@ impl PartialTracker {
                 continue;
             }
 
-            while voice < VOICE_COUNT && (is_voice_taken[voice] || is_fading_out[voice]) {
+            while voice < self.voice_count && (is_voice_taken[voice] || is_fading_out[voice]) {
                 voice += 1;
             }
-            if voice == VOICE_COUNT {
+            if voice == self.voice_count {
                 return;
             }
 

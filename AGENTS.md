@@ -2,7 +2,7 @@
 
 Guidance for coding agents working in this repository. Read [Rules that protect users' work](#rules-that-protect-users-work) before changing anything.
 
-PartialResynth is a VST® 3 effect for Windows that finds the five loudest partials of its input, using a port of `fiddle~` from Pure Data, and plays each with a synth voice. It uses the Steinberg VST3 SDK and VSTGUI directly. JUCE was deliberately rejected, so don't introduce it.
+PartialResynth is a VST® 3 effect that finds the loudest partials of its input, five by default and up to 24, using a port of `fiddle~` from Pure Data, and plays each with a synth voice. It uses the Steinberg VST3 SDK and VSTGUI directly. JUCE was deliberately rejected, so don't introduce it.
 
 `docs/signal-path.md` is the behaviour specification. `README.md` covers building and usage.
 
@@ -89,9 +89,9 @@ People use this plug-in in real projects. Breaking these rules damages saved pro
 
 These were chosen deliberately, so don't "fix" them without the owner's agreement:
 
-- Five partials, each with one voice, and one set of controls for all of them.
+- One voice per partial, with the count a control, Partials, from 5 to 24, and one set of controls for all of them. The default of 5 is what the plug-in had before the control, so that saved projects play as they did, and it stays 5.
 - Two oscillators per voice with sine, saw and square, then a filter. The only envelope is the one from the analysis: there's no ADSR.
-- It takes the five loudest peaks, not the five lowest that `fiddle~` outputs.
+- It takes the loudest peaks, not the lowest that `fiddle~` outputs.
 - A voice follows its partial, rather than playing a position in `fiddle~`'s list.
 - A window of 2048 with a hop of 512, not `fiddle~`'s own hop of half a window, for less latency.
 - Key follow, envelope to cutoff, Spread and Glide are all wanted, as additions to the original brief.
@@ -114,7 +114,7 @@ In `docs/signal-path.md`, **Requirement** marks the owner's decisions and **Prop
 ```
              ┌─→ Dry delay ───────────────────────────────────────────────┐
 In (stereo) ─┤                                                            ├→ Dry/wet → Volume → Out
-             └─→ Mono → 2 × fiddle~ → Tracker → 5 voices → Spread ────────┘
+             └─→ Mono → 2 × fiddle~ → Tracker → 5 to 24 voices → Spread ──┘
 
 Voice:  Osc 1 ─┐
                 ├→ Filter → × level from the analysis
@@ -139,7 +139,7 @@ The processor and controller share no memory, so the plug-in is marked as distri
 
 ### The voices
 
-- **`PartialTracker`** chooses the loudest peaks, and gives a peak that's already being played a 3 dB advantage so that two similar peaks don't take turns. It matches them to the voices by closest pitch, up to a semitone per frame.
+- **`PartialTracker`** chooses the loudest peaks, as many as Partials asks for, and gives a peak that's already being played a 3 dB advantage so that two similar peaks don't take turns. It matches them to the voices by closest pitch, up to a semitone per frame. The voices exist for the most Partials allows, `MAX_VOICE_COUNT`, and the tracker gives partials to the first `voice_count` of them. A voice beyond the count only finishes fading out, which is how lowering the count sounds.
 - **Control rate:** pitch, filter coefficients, tuning and panning update every 16 samples. Only the level and the audio itself run per sample.
 - **Sleep:** with a silent input for longer than the buffers, and all the voices silent, the analyzers stop and the output is flagged as silent. Parameter changes then apply without a ramp.
 

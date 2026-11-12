@@ -27,6 +27,7 @@ static_assert (kOsc1Wave == 2 && kOsc1Level == 3 && kOsc1Coarse == 4 && kOsc1Fin
 static_assert (kOsc2Wave == 6 && kOsc2Level == 7 && kOsc2Coarse == 8 && kOsc2Fine == 9, "Parameter IDs are saved in projects");
 static_assert (kFilterMode == 10 && kFilterCutoff == 11 && kFilterResonance == 12 && kFilterKeyFollow == 13 && kFilterEnvAmount == 14, "Parameter IDs are saved in projects");
 static_assert (kSpread == 15 && kDryWet == 16 && kVolume == 17, "Parameter IDs are saved in projects");
+static_assert (kPartials == 18, "Parameter IDs are saved in projects");
 
 } // namespace
 
@@ -52,7 +53,7 @@ void testClassIds ()
 void testParameterIds ()
 {
     Plug plug;
-    check ("there are 18 parameters", plug.controller->getParameterCount () == 18);
+    check ("there are 19 parameters", plug.controller->getParameterCount () == 19);
 
     bool allMatch = true;
     for (int32 i = 0; i < plug.controller->getParameterCount (); ++i)
@@ -79,6 +80,7 @@ void testParameterRanges ()
         { kOsc2Wave, 0, 2 }, { kOsc2Level, 0, 100 }, { kOsc2Coarse, -24, 24 }, { kOsc2Fine, -100, 100 },
         { kFilterMode, 0, 3 }, { kFilterCutoff, 20, 20000 }, { kFilterResonance, 0, 100 }, { kFilterKeyFollow, 0, 100 }, { kFilterEnvAmount, -8, 8 },
         { kSpread, 0, 100 }, { kDryWet, 0, 100 }, { kVolume, -60, 6 },
+        { kPartials, 5, 24 },
     };
 
     Plug plug;
@@ -93,15 +95,16 @@ void testParameterRanges ()
     check ("cutoff is logarithmic", std::abs (plug.controller->normalizedParamToPlain (kFilterCutoff, 0.5) - 632.46) < 0.01);
     check ("glide is squared, and reaches zero", nearly (plug.controller->normalizedParamToPlain (kGlide, 0.5), 500.0) && plug.controller->normalizedParamToPlain (kGlide, 0.0) == 0.0);
     check ("coarse tuning moves in semitones", nearly (plug.controller->normalizedParamToPlain (kOsc1Coarse, 0.51), 0.0));
+    check ("partials moves in whole voices, and starts from the five there always were", nearly (plug.controller->normalizedParamToPlain (kPartials, 0.51), 15.0) && nearly (plug.controller->getParamNormalized (kPartials), 0.0));
 }
 
 void testSavedFormat ()
 {
     Plug plug;
     const auto bytes = plug.getStateBytes ();
-    check ("version, count, then 18 ID and value pairs", bytes.size () == 8 + 18 * 12);
+    check ("version, count, then 19 ID and value pairs", bytes.size () == 8 + 19 * 12);
     check ("version 1", readAt<int32_t> (bytes, 0) == 1);
-    check ("the count is 18", readAt<int32_t> (bytes, 4) == 18);
+    check ("the count is 19", readAt<int32_t> (bytes, 4) == 19);
     check ("the first pair is Threshold", readAt<int32_t> (bytes, 8) == 0 && std::abs (readAt<double> (bytes, 12) - 30.0 / 70.0) < 1e-9);
 
     MemoryStream empty;

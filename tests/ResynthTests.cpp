@@ -167,6 +167,66 @@ void testResynthThreshold ()
     }
 }
 
+// Partials is how many voices there are. Twelve harmonics, 150 Hz apart, which the window tells apart.
+void testResynthCount ()
+{
+    std::vector<Tone> tones;
+    for (int h = 1; h <= 12; ++h)
+        tones.push_back ({ 150.0 * h, 0.1 });
+    const auto input = makeTones (tones, seconds (1.0));
+
+    const auto playing = [&] (const Samples& samples, size_t from) {
+        int count = 0;
+        for (const auto& tone : tones)
+            count += toneLevel (samples, tone.frequency, from) > 0.05 ? 1 : 0;
+        return count;
+    };
+
+    {
+        Plug plug;
+        const auto output = plug.process (input);
+        check ("by default, five of the twelve play, as they always did", playing (output.left, kSettle) == 5);
+    }
+    {
+        Plug plug;
+        plug.set (kPartials, 12);
+        const auto output = plug.process (input);
+        bool allAtLevel = true;
+        for (const auto& tone : tones)
+        {
+            const double level = toneLevel (output.left, tone.frequency, kSettle);
+            std::printf ("  %.0f Hz: in %.1f dB, out %.1f dB\n", tone.frequency, db (tone.amplitude), db (level));
+            allAtLevel = allAtLevel && std::abs (db (level) - db (tone.amplitude)) < 0.5;
+        }
+        check ("at 12, all twelve play", playing (output.left, kSettle) == 12);
+        check ("each at its level, within 0.5 dB", allAtLevel);
+    }
+    {
+        Plug plug;
+        plug.set (kPartials, 24);
+        const auto output = plug.process (input);
+        check ("at 24, there are still only twelve to play", playing (output.left, kSettle) == 12);
+        check ("and left and right are the same with Spread at 0", output.left == output.right);
+    }
+    {
+        // Lowered while playing: the extra voices fade out, within a frame, and the rest go on.
+        Plug plug;
+        plug.set (kPartials, 12);
+        const auto first = plug.process (input);
+        check ("twelve play before the change", playing (first.left, kSettle) == 12);
+        plug.set (kPartials, 5);
+        const auto second = plug.process (input);
+        check ("five play after it", playing (second.left, kSettle) == 5);
+        bool othersGone = true;
+        for (const auto& tone : tones)
+        {
+            const double level = toneLevel (second.left, tone.frequency, kSettle);
+            othersGone = othersGone && (level > 0.05 || level < 0.005);
+        }
+        check ("and nothing of the others is left", othersGone);
+    }
+}
+
 void testLatencyAlignment ()
 {
     Plug plug;

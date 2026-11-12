@@ -32,6 +32,7 @@ const Test kTests[] = {
     { L"resynth-follows", testResynthFollows },
     { L"resynth-silence", testResynthSilence },
     { L"resynth-threshold", testResynthThreshold },
+    { L"resynth-count", testResynthCount },
     { L"latency-alignment", testLatencyAlignment },
 
     { L"osc-waves", testOscWaves },
