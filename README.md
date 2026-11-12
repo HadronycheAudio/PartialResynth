@@ -2,7 +2,7 @@
 
 <img src="docs/images/VST_Compatible_Logo_Steinberg_with_TM.png" alt="VST Compatible" width="110">
 
-A VST® 3 effect by Hadronyche that listens to its input, finds the five loudest partials, and plays each of them with its own synth voice. The analysis is a port of `fiddle~` from Pure Data. It's built directly on the Steinberg VST 3 SDK and VSTGUI.
+A VST® 3 effect by Hadronyche that listens to its input, finds its loudest partials, five by default and up to 24, and plays each of them with its own synth voice. The analysis is a port of `fiddle~` from Pure Data. It's built directly on the Steinberg VST 3 SDK and VSTGUI.
 
 `docs/signal-path.md` describes the design and how each module behaves.
 
@@ -80,11 +80,12 @@ xvfb-run -a ctest --test-dir build/Release --output-on-failure
 
 ## Using it
 
-Each voice follows one partial, taking its frequency and its level. There are no envelopes to set: the analysis is the envelope. All the controls apply to all five voices.
+Each voice follows one partial, taking its frequency and its level. There are no envelopes to set: the analysis is the envelope. All the controls apply to all the voices.
 
 **Analysis**
 
 - Threshold is in dB below a full-scale sine, measured on the input's total power. Below it, the voices fade out.
+- Partials is how many voices there are, from 5 to 24, and so how many of the loudest partials play. More resolve the input into more of its partials, fewer reduce it to its strongest. Lowering it fades the extra voices out.
 - Glide slows the voices' pitch down as they follow their partials. At 0, they track as tightly as the analysis allows.
 
 **Oscillator 1 and 2**
@@ -102,7 +103,7 @@ Each voice follows one partial, taking its frequency and its level. There are no
 
 **Output**
 
-- Spread places the voices across the stereo field. Which partial goes where depends on which voice it found free.
+- Spread places the voices across the stereo field: the first in the centre, then left and right in turn, further out each time. Which partial goes where depends on which voice it found free.
 - Dry/wet at 50% plays both at full level.
 - Volume is last.
 

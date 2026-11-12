@@ -125,7 +125,7 @@ void testOscLevels ()
         bool allHalved = true;
         for (const auto& tone : tones)
             allHalved = allHalved && std::abs (toneLevel (output.left, tone.frequency, kSettle) - 0.1) < 0.01;
-        check ("one control applies to all five voices", allHalved);
+        check ("one control applies to all the voices", allHalved);
     }
 }
 
@@ -496,34 +496,40 @@ void testParameterText ()
     check ("filter mode 1 is High-pass", text (kFilterMode, 1) == "High-pass");
     check ("the bottom of Volume is -inf", text (kVolume, -60.0) == "-inf");
     check ("coarse shows whole semitones", text (kOsc1Coarse, 7) == "7");
+    check ("partials shows whole voices", text (kPartials, 12) == "12");
 
     double value = 0.0;
     check ("a typed value is understood", paramFromText (plug.controller, kFilterCutoff, "1000", value));
     check ("and it means what it says", std::abs (plug.controller->normalizedParamToPlain (kFilterCutoff, value) - 1000.0) < 0.01);
 }
 
-// Five sawtooth voices with both oscillators and the filter moving, on the kind of input that keeps all five.
+// Sawtooth voices with both oscillators and the filter moving, on the kind of input that keeps them all busy: first
+// the five there always were, then the most the Partials control allows.
 void measureCpu ()
 {
-    std::vector<Tone> tones;
-    for (int h = 1; h <= 12; ++h)
-        tones.push_back ({ 110.0 * h, 0.4 / h });
-    const auto input = makeTones (tones, 48000 * 10);
+    for (const int partials : { 5, 24 })
+    {
+        std::vector<Tone> tones;
+        for (int h = 1; h <= partials; ++h)
+            tones.push_back ({ 110.0 * h, 0.4 / h });
+        const auto input = makeTones (tones, 48000 * 10);
 
-    Plug plug;
-    plug.set (kOsc1Wave, 1);
-    plug.set (kOsc2Wave, 2);
-    plug.set (kOsc2Level, 100);
-    plug.set (kFilterCutoff, 2000);
-    plug.set (kFilterEnvAmount, 2);
-    plug.set (kSpread, 100);
+        Plug plug;
+        plug.set (kOsc1Wave, 1);
+        plug.set (kOsc2Wave, 2);
+        plug.set (kOsc2Level, 100);
+        plug.set (kFilterCutoff, 2000);
+        plug.set (kFilterEnvAmount, 2);
+        plug.set (kSpread, 100);
+        plug.set (kPartials, partials);
 
-    const auto start = std::chrono::steady_clock::now ();
-    plug.process (input);
-    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now () - start;
+        const auto start = std::chrono::steady_clock::now ();
+        plug.process (input);
+        const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now () - start;
 
-    const double seconds = elapsed.count ();
-    std::printf ("  10 s of audio in %.3f s, which is %.2f%% of one core\n", seconds, seconds * 10.0);
+        const double seconds = elapsed.count ();
+        std::printf ("  %d partials: 10 s of audio in %.3f s, which is %.2f%% of one core\n", partials, seconds, seconds * 10.0);
+    }
 }
 
 } // namespace Tests

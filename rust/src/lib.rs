@@ -16,7 +16,7 @@ use hadronyche_plugin::{Block, Curve, Output, ParamSpec, Params, Processor, Tail
 
 use fiddle_analyzer::FiddleAnalyzer;
 use oscillator::Wave;
-use partial_tracker::{PartialTracker, VOICE_COUNT};
+use partial_tracker::{DEFAULT_VOICE_COUNT, MAX_VOICE_COUNT, MIN_VOICE_COUNT, PartialTracker};
 use state_variable_filter::mode_from_index;
 use voice::{Voice, VoiceControls};
 
@@ -50,6 +50,8 @@ params! {
         Spread => ParamSpec::new(c"Spread", c"%", 0.0, 100.0, 0.0, Curve::Linear, 0),
         DryWet => ParamSpec::new(c"Dry/wet", c"%", 0.0, 100.0, 100.0, Curve::Linear, 0),
         Volume => ParamSpec::new(c"Volume", c"dB", VOLUME_SILENCE_DB, 6.0, 0.0, Curve::Linear, 1).silent_at_min(),
+
+        Partials => ParamSpec::new(c"Partials", c"", MIN_VOICE_COUNT as f64, MAX_VOICE_COUNT as f64, DEFAULT_VOICE_COUNT as f64, Curve::Integer, 0),
     }
 }
 
@@ -68,8 +70,31 @@ const SILENT_PEAK: f32 = 1e-7;
 const MIN_Q: f64 = 0.707;
 const MAX_Q: f64 = 20.0;
 
-/// Across the stereo field when Spread is at 100%. The first voice is centred.
-const PAN_POSITIONS: [f64; VOICE_COUNT] = [0.0, -0.5, 0.5, -1.0, 1.0];
+/// Where voice `v` of `count` sits when Spread is at 100%, from -1 (left) to 1 (right). The first is in the centre,
+/// and the rest go left and right in turn, each further out than the last on its side, so that the last on each side
+/// is at the edge. With five, that's 0, -0.5, 0.5, -1 and 1, as it was before the count was a control. With an even
+/// count, the left has one more than the right. A voice beyond the count, fading out after it was lowered, stays at
+/// the side.
+fn pan_position(v: usize, count: usize) -> f64 {
+    if v == 0 {
+        return 0.0;
+    }
+    let on_left = count / 2;
+    let on_right = (count - 1) / 2;
+    let distance = v.div_ceil(2);
+    let towards = |on_side: usize| {
+        if on_side == 0 {
+            0.0
+        } else {
+            distance.min(on_side) as f64 / on_side as f64
+        }
+    };
+    if v % 2 == 1 {
+        -towards(on_left)
+    } else {
+        towards(on_right)
+    }
+}
 
 /// Doubling the sample rate doubles the window, which keeps its length in time, and so what it can tell apart.
 pub fn window_size_for(sample_rate: f64) -> usize {
@@ -96,10 +121,16 @@ pub struct PartialResynth {
     /// Two copies of fiddle~, half a hop apart, so that together they give a frame every quarter window.
     analyzers: [FiddleAnalyzer; 2],
     tracker: PartialTracker,
-    voices: [Voice; VOICE_COUNT],
+    /// Enough for the most the Partials control can ask for. The tracker gives partials to the first `voice_count`,
+    /// and the rest only finish fading out.
+    voices: [Voice; MAX_VOICE_COUNT],
+    voice_count: usize,
     voice_controls: VoiceControls,
-    pan_left: [f32; VOICE_COUNT],
-    pan_right: [f32; VOICE_COUNT],
+    /// Each voice's place in the field, smoothed per control tick, so that a change of count moves the voices that
+    /// are playing rather than stepping them.
+    pan_positions: [Smoother; MAX_VOICE_COUNT],
+    pan_left: [f32; MAX_VOICE_COUNT],
+    pan_right: [f32; MAX_VOICE_COUNT],
     control_countdown: i32,
 
     // Per control tick.
@@ -162,6 +193,19 @@ impl PartialResynth {
         self.dry_gain.set_target(dry_gain(params.plain(Param::DryWet)));
         self.wet_gain.set_target(wet_gain(params.plain(Param::DryWet)));
         self.volume.set_target(volume_to_gain(params.plain(Param::Volume)));
+
+        self.voice_count = (params.plain(Param::Partials) as usize).clamp(1, MAX_VOICE_COUNT);
+        self.tracker.set_voice_count(self.voice_count);
+        // A voice beyond the count keeps its place while it fades out. A silent one goes straight to its place, since
+        // nobody hears it move, so that a partial starting in it starts where it belongs.
+        for (v, position) in self.pan_positions.iter_mut().enumerate().take(self.voice_count) {
+            let target = pan_position(v, self.voice_count);
+            if self.voices[v].is_silent() {
+                position.snap_to(target);
+            } else {
+                position.set_target(target);
+            }
+        }
     }
 
     fn smoothers(&mut self) -> [&mut Smoother; 12] {
@@ -186,6 +230,9 @@ impl PartialResynth {
         for smoother in self.smoothers() {
             smoother.snap_to_target();
         }
+        for position in &mut self.pan_positions {
+            position.snap_to_target();
+        }
     }
 
     fn update_controls(&mut self) {
@@ -201,7 +248,8 @@ impl PartialResynth {
         // At constant power, with the gains scaled to reach 1 in the middle, so that with Spread at 0, the voices are
         // at the same level in both channels as they'd be in mono.
         let spread = self.spread.step();
-        for (v, position) in PAN_POSITIONS.iter().enumerate() {
+        for v in 0..MAX_VOICE_COUNT {
+            let position = self.pan_positions[v].step();
             let angle = core::f64::consts::FRAC_PI_4 * (1.0 + spread * position);
             self.pan_left[v] = (core::f64::consts::SQRT_2 * angle.cos()) as f32;
             self.pan_right[v] = (core::f64::consts::SQRT_2 * angle.sin()) as f32;
@@ -235,9 +283,11 @@ impl PartialResynth {
                 self.update_controls();
             }
 
+            // Every voice, not only those up to the count: one beyond it may still be fading out, and a silent one
+            // costs nothing.
             let mut wet_left = 0f32;
             let mut wet_right = 0f32;
-            for v in 0..VOICE_COUNT {
+            for v in 0..MAX_VOICE_COUNT {
                 let voice = self.voices[v].process(&self.voice_controls);
                 wet_left += voice * self.pan_left[v];
                 wet_right += voice * self.pan_right[v];
@@ -283,9 +333,11 @@ impl Processor for PartialResynth {
             analyzers: [FiddleAnalyzer::default(), FiddleAnalyzer::default()],
             tracker: PartialTracker::default(),
             voices: Default::default(),
+            voice_count: DEFAULT_VOICE_COUNT,
             voice_controls: VoiceControls::default(),
-            pan_left: [0.0; VOICE_COUNT],
-            pan_right: [0.0; VOICE_COUNT],
+            pan_positions: [Smoother::default(); MAX_VOICE_COUNT],
+            pan_left: [0.0; MAX_VOICE_COUNT],
+            pan_right: [0.0; MAX_VOICE_COUNT],
             control_countdown: 0,
             level1: Smoother::default(),
             level2: Smoother::default(),
@@ -320,6 +372,9 @@ impl Processor for PartialResynth {
         }
 
         let ticks_per_second = sample_rate / f64::from(CONTROL_INTERVAL);
+        for position in &mut self.pan_positions {
+            position.prepare(ticks_per_second, SMOOTHING_MS);
+        }
         let mut smoothers = self.smoothers();
         let (per_tick, per_sample) = smoothers.split_at_mut(9);
         for smoother in per_tick {
@@ -428,8 +483,32 @@ mod tests {
         assert_eq!(
             plain,
             [
-                -60.0, 0.0, 0.0, 100.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 20000.0, 0.0, 0.0, 0.0, 0.0, 100.0, 0.0
+                -60.0, 0.0, 0.0, 100.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 20000.0, 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 5.0
             ]
         );
+    }
+
+    #[test]
+    fn five_voices_sit_where_they_always_did_and_more_fill_the_field() {
+        let five: Vec<f64> = (0..5).map(|v| pan_position(v, 5)).collect();
+        assert_eq!(five, [0.0, -0.5, 0.5, -1.0, 1.0]);
+
+        let six: Vec<f64> = (0..6).map(|v| pan_position(v, 6)).collect();
+        assert_eq!(six, [0.0, -1.0 / 3.0, 0.5, -2.0 / 3.0, 1.0, -1.0]);
+
+        for count in MIN_VOICE_COUNT..=MAX_VOICE_COUNT {
+            let positions: Vec<f64> = (0..count).map(|v| pan_position(v, count)).collect();
+            assert_eq!(positions[0], 0.0, "the first voice is in the centre");
+            assert!(
+                positions.contains(&-1.0) && positions.contains(&1.0),
+                "{count}: both sides are reached"
+            );
+            assert!(positions.iter().all(|p| (-1.0..=1.0).contains(p)));
+            assert_eq!(
+                pan_position(count, count).abs(),
+                1.0,
+                "a voice beyond the count stays at a side"
+            );
+        }
     }
 }

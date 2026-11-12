@@ -18,6 +18,7 @@ void testResynthContinuous ();
 void testResynthFollows ();
 void testResynthSilence ();
 void testResynthThreshold ();
+void testResynthCount ();
 void testLatencyAlignment ();
 
 // SynthTests.cpp

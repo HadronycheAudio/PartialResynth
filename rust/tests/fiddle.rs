@@ -6,7 +6,7 @@
 #![allow(clippy::approx_constant)]
 
 use partialresynth::fiddle_analyzer::{FiddleAnalyzer, SpectralPeak};
-use partialresynth::partial_tracker::{PartialTracker, Targets, VOICE_COUNT};
+use partialresynth::partial_tracker::{DEFAULT_VOICE_COUNT, PartialTracker, Targets};
 use reference_fiddle::ReferenceFiddle;
 
 const SAMPLE_RATE: f64 = 48000.0;
@@ -322,7 +322,7 @@ fn tracker_loudest() {
         "the quieter ones aren't"
     );
     assert!(
-        targets.iter().all(|target| target.is_new),
+        targets[..DEFAULT_VOICE_COUNT].iter().all(|target| target.is_new),
         "every voice starting is marked as new"
     );
 }
@@ -391,14 +391,14 @@ fn tracker_new_waits() {
         &peaks_of(&[(100.0, 0.5), (200.0, 0.5), (300.0, 0.5), (400.0, 0.5), (500.0, 0.5)]),
     );
     assert!(
-        first.iter().all(|target| target.amplitude > 0.0),
+        first[..DEFAULT_VOICE_COUNT].iter().all(|target| target.amplitude > 0.0),
         "all the voices are playing"
     );
 
     // Five different partials, too far away to be the same ones.
     let next = peaks_of(&[(150.0, 0.5), (250.0, 0.5), (350.0, 0.5), (450.0, 0.5), (550.0, 0.5)]);
     let second = feed(&mut tracker, &next);
-    for v in 0..VOICE_COUNT {
+    for v in 0..DEFAULT_VOICE_COUNT {
         assert!(
             second[v].amplitude == 0.0 && !second[v].is_new,
             "a voice being heard doesn't change pitch: it fades"
@@ -465,4 +465,52 @@ fn tracker_keeps_place() {
         voice_at(&targets, 600.0).is_some(),
         "and gets the voice in the next frame"
     );
+}
+
+fn playing(targets: &Targets) -> usize {
+    targets.iter().filter(|target| target.amplitude > 0.0).count()
+}
+
+#[test]
+fn tracker_count() {
+    let mut tracker = PartialTracker::default();
+    let twelve: Vec<(f32, f32)> = (1..=12).map(|h| (100.0 * h as f32, 0.5)).collect();
+    let peaks = peaks_of(&twelve);
+
+    let targets = feed(&mut tracker, &peaks);
+    assert_eq!(playing(&targets), DEFAULT_VOICE_COUNT, "five play by default");
+
+    tracker.set_voice_count(12);
+    let targets = feed(&mut tracker, &peaks);
+    assert_eq!(
+        playing(&targets),
+        12,
+        "raising the count gives the waiting partials voices in the next frame"
+    );
+    for &(frequency, _) in &twelve {
+        assert!(voice_at(&targets, frequency).is_some(), "{frequency} Hz is played");
+    }
+
+    tracker.set_voice_count(24);
+    let targets = feed(&mut tracker, &peaks);
+    assert_eq!(playing(&targets), 12, "no more voices play than there are partials");
+
+    tracker.set_voice_count(5);
+    let targets = feed(&mut tracker, &peaks);
+    assert_eq!(
+        playing(&targets),
+        5,
+        "lowering it leaves the extra voices without a partial, so they fade"
+    );
+    assert!(
+        targets[5..]
+            .iter()
+            .all(|target| target.amplitude == 0.0 && !target.is_new),
+        "the voices beyond the count fade rather than start anything"
+    );
+    let kept: Vec<usize> = (0..5).filter(|&v| targets[v].amplitude > 0.0).collect();
+    assert_eq!(kept, [0, 1, 2, 3, 4], "the first five voices are the ones that go on");
+
+    let targets = feed(&mut tracker, &peaks);
+    assert_eq!(playing(&targets), 5, "and the count holds");
 }

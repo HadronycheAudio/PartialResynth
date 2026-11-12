@@ -27,7 +27,7 @@ const Hadronyche::PanelTheme kTheme {
 } // namespace
 
 Editor::Editor (Controller* controller)
-: PanelEditor (controller, kLayout.rowWidth ({ 2, 4, 4, 5, 3 }), kLayout.rowHeight (), Hadronyche::RustPlugin::getSpec, kParamCount, kTheme, kLayout)
+: PanelEditor (controller, kLayout.rowWidth ({ 3, 4, 4, 5, 3 }), kLayout.rowHeight (), Hadronyche::RustPlugin::getSpec, kParamCount, kTheme, kLayout)
 {
 }
 
@@ -36,9 +36,10 @@ void Editor::buildPanel ()
     const int knobY = kLayout.knobRow ();
 
     {
-        const int left = addColumnSection (2, "Analysis");
+        const int left = addColumnSection (3, "Analysis");
         addKnob (left, knobY, kThreshold, "Threshold");
-        addKnob (left + kLayout.columnWidth, knobY, kGlide, "Glide");
+        addKnob (left + kLayout.columnWidth, knobY, kPartials, "Partials");
+        addKnob (left + 2 * kLayout.columnWidth, knobY, kGlide, "Glide");
     }
 
     const auto addOscillator = [&] (const char* title, ParamId wave, ParamId level, ParamId coarse, ParamId fine) {
