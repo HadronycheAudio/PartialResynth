@@ -187,6 +187,8 @@ Pushing a tag `v<version>` publishes a release, once everything has passed:
 3. Commit, push, and wait for CI to pass.
 4. Tag that commit and push the tag.
 
+A pre-release, for the owner to try a change before it replaces the release that people download, is a tag `v<version>-<suffix>`, such as `v1.5.0-alpha.1` on version 1.5.0, with its notes at `docs/release-notes/v<version>-<suffix>.md`. CI names the installers after the whole tag and publishes it as a GitHub pre-release, so the latest release stays the previous one. The final release is the same version with the plain tag and its own notes.
+
 CI builds the installer on every push, installs it on its own machine, runs the validator and all the tests on the installed copy, and uninstalls it. HadronycheCore's `tools/windows/test-installer.ps1` writes to Program Files, so don't run it on a machine you care about.
 
 Rules for releases:
